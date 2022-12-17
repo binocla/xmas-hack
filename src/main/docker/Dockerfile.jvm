@@ -77,6 +77,8 @@
 ###
 FROM registry.access.redhat.com/ubi8/openjdk-17:1.14
 
+USER root
+
 WORKDIR /app
 
 # Copy the project files into the working directory

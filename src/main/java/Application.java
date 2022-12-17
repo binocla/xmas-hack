@@ -11,6 +11,7 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -37,6 +38,11 @@ public class Application {
 
             try (BufferedReader reader = new BufferedReader(new FileReader(csvFile))) {
                 reader.lines().map(line -> line.split(",")).skip(1).map(values -> {
+                    for (int i = 0; i < values.length; i++) {
+                        if (values[i] == null) {
+                            values[i] = "nan";
+                        }
+                    }
                     String amountRub = values[10];
                     String currency = values[11];
                     if (currency.equalsIgnoreCase("USD")) {
@@ -70,14 +76,16 @@ public class Application {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(args[1]))) {
                 writer.write(Arrays.stream(TransactionModel.class.getDeclaredFields()).map(Field::getName).collect(Collectors.joining(",")));
                 writer.newLine();
-                CatBoostModel catBoostModel = CatBoostModel.loadModel("src/main/resources/model.cbm");
+                ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+                InputStream is = classloader.getResourceAsStream("model.cbm");
+                CatBoostModel catBoostModel = CatBoostModel.loadModel(is);
                 for (TransactionModel model : models) {
                     CatBoostPredictions catBoostPredictions = catBoostModel.predict(new float[]{Float.parseFloat(model.amount_rub())},
                             new String[]{model.email(), model.ip(),
-                            model.cardToken(), model.paymentSystem(), model.providerId(),
-                            model.bankCountry(), model.partyId(), model.shopId(), model.currency(),
-                            model.bin_hash(), model.ms_pan_hash(), model.hours(), model.minutes(),
-                            model.seconds()});
+                                    model.cardToken(), model.paymentSystem(), model.providerId(),
+                                    model.bankCountry(), model.partyId(), model.shopId(), model.currency(),
+                                    model.bin_hash(), model.ms_pan_hash(), model.hours(), model.minutes(),
+                                    model.seconds()});
                     writer.write(model.eventTime() + "," + model.email() + "," + model.ip() + "," +
                             model.cardToken() + "," + model.paymentSystem() + "," +
                             model.providerId() + "," + model.bankCountry() + "," + model.partyId() + "," +
@@ -103,6 +111,8 @@ public class Application {
                 .completionStage(modelsFuture)
                 .await()
                 .indefinitely();
+
+
         Quarkus.run(args);
     }
 
